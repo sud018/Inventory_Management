@@ -7,6 +7,7 @@ import java.util.List;
 
 import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -18,6 +19,13 @@ public class ProductController {
     @Autowired
     private ProductService productService;
 
+    @Value("${spring.profiles.active}")
+    private String activeProfile;
+
+    @GetMapping("/profile")
+    public String getProfile() {
+        return "Active profile: " + activeProfile;
+    }
     @GetMapping()
     public ResponseEntity<List<Product>> getAllProducts(){
         List<Product> products = productService.getAllProducts();

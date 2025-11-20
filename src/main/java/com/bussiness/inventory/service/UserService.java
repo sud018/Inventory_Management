@@ -3,6 +3,8 @@ package com.bussiness.inventory.service;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import com.bussiness.inventory.dto.LoginRequest;
+import com.bussiness.inventory.util.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -10,9 +12,13 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import com.bussiness.inventory.annotation.Encrypt;
 import com.bussiness.inventory.dto.SignupRequest;
 import com.bussiness.inventory.dto.SignupResponse;
+import com.bussiness.inventory.dto.LoginResponse;
 import com.bussiness.inventory.model.User;
 import com.bussiness.inventory.repository.UserRepository;
 import com.bussiness.inventory.util.EncryptionUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 
 import jakarta.transaction.Transactional;
 
@@ -24,6 +30,10 @@ public class UserService {
     private EncryptionUtil encryptionUtil;
     @Autowired
     private PasswordEncoder passwordEncoder;
+    @Autowired
+    private JwtUtil jwtUtil;
+
+    private static final Logger logger = LoggerFactory.getLogger(UserService.class);
 
     @Transactional
     @Encrypt(field = "password")
@@ -105,5 +115,34 @@ public class UserService {
         User user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("user not found"));
         user.setLastlogin(LocalDateTime.now());
         userRepository.save(user);
+    }
+
+// --------------   Login ---------------------
+
+    public LoginResponse login(LoginRequest request){
+        if(request.getUsername() ==null || request.getUsername().trim().isEmpty()){
+            throw new IllegalArgumentException("username is required");
+        }
+        if(request.getPassword() == null || request.getPassword().trim().isEmpty()){
+            throw new IllegalArgumentException("password is required");
+        }
+       User user = userRepository.findByUsername(request.getUsername()).orElseThrow(() -> new RuntimeException("user not found"));
+       if(!passwordEncoder.matches(request.getPassword(), user.getPassword())){
+           throw new RuntimeException("Invalid password");
+        }
+       user.setLastlogin(LocalDateTime.now());
+       userRepository.save(user);
+       String token = jwtUtil.generateToken(user.getUsername(), user.getRole(), user.getId());
+
+        logger.info("✅ User logged in successfully: {}", user.getUsername());
+        logger.debug("🔑 Generated token : {}...", token.substring(0, 20));
+
+        return new LoginResponse(
+                token,
+                user.getId(),
+                user.getUsername(),
+                user.getRole()
+        );
+
     }
 }
